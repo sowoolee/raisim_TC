@@ -26,7 +26,7 @@ class RaisimGymEnv {
 
   virtual ~RaisimGymEnv() { if(server_) server_->killServer(); };
 
-  /////// implement these methods /////////
+  /////// implement these methods /////////D
   virtual void init() = 0;
   virtual void reset() = 0;
   virtual void observe(Eigen::Ref<EigenVec> ob) = 0;

@@ -5,11 +5,11 @@ environment:
   render: True
 # just testing commenting
   num_envs: 100
-  eval_every_n: 200
+  eval_every_n: 10
   num_threads: 30
-  simulation_dt: 0.0025
-  control_dt: 0.01
-  max_time: 4.0
+  simulation_dt: 0.005
+  control_dt: 0.02
+  max_time: 1.12
   action_std: 0.3
   reward:
     forwardVel:

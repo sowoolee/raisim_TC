@@ -17,7 +17,7 @@ import argparse
 
 
 # task specification
-task_name = "anymal_locomotion"
+task_name = "go1_locomotion"
 
 # configuration
 parser = argparse.ArgumentParser()
