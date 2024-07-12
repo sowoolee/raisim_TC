@@ -18,18 +18,28 @@ class ConfigurationSaver:
     @property
     def data_dir(self):
         return self._data_dir
-        
+
 
 def tensorboard_launcher(directory_path):
     from tensorboard import program
     import webbrowser
     # learning visualizer
     tb = program.TensorBoard()
-    tb.configure(argv=[None, '--logdir', directory_path, '--port', '2090'])
+    # tb.configure(argv=[None, '--logdir', directory_path])
+    tb.configure(argv=[None, '--logdir', directory_path, '--port', str(find_free_port(6006))])
+
     url = tb.launch()
     print("[RAISIM_GYM] Tensorboard session created: "+url)
-    webbrowser.open_new(url)
+    # webbrowser.open_new(url)
 
+def find_free_port(start_port=6006):
+    import socket
+    port = start_port
+    while True:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('localhost', port)) != 0:
+                return port
+            port += 1
 
 def load_param(weight_path, env, actor, critic, optimizer, data_dir):
     if weight_path == "":

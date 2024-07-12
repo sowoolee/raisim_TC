@@ -10,6 +10,50 @@
 #include "omp.h"
 #include "Yaml.hpp"
 
+#include <vector>
+#include <Eigen/Dense>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+std::vector<Eigen::MatrixXd> globalMatrices;
+
+// CSV 파일을 읽어 전역 벡터로 변환하는 함수
+void readCSVtoEigen(const std::string& filename) {
+  std::ifstream file(filename);
+  std::string line;
+  globalMatrices.clear(); // 기존 데이터를 초기화
+
+  const int rows_per_matrix = 250;
+  const int cols_per_matrix = 37;
+
+  if (file.is_open()) {
+    int row_count = 0;
+    Eigen::MatrixXd mat(rows_per_matrix, cols_per_matrix);
+    while (std::getline(file, line)) {
+      std::stringstream lineStream(line);
+      std::string cell;
+      int col = 0;
+      while (std::getline(lineStream, cell, ',')) {
+        mat(row_count % rows_per_matrix, col) = std::stod(cell);
+        col++;
+      }
+      row_count++;
+      if (row_count % rows_per_matrix == 0) {
+        globalMatrices.push_back(mat);
+        mat = Eigen::MatrixXd(rows_per_matrix, cols_per_matrix); // 새로운 행렬 초기화
+      }
+    }
+    // 파일이 끝난 후, 남은 데이터가 있는 경우 처리
+    if (row_count % rows_per_matrix != 0) {
+      globalMatrices.push_back(mat.topRows(row_count % rows_per_matrix));
+    }
+    file.close();
+  } else {
+    std::cerr << "파일을 열 수 없습니다." << std::endl;
+  }
+}
+
 namespace raisim {
 
 int THREAD_COUNT;
@@ -22,6 +66,10 @@ class VectorizedEnvironment {
   explicit VectorizedEnvironment(std::string resourceDir, std::string cfg, bool normalizeObservation=true)
       : resourceDir_(resourceDir), cfgString_(cfg), normalizeObservation_(normalizeObservation) {
     Yaml::Parse(cfg_, cfg);
+
+    std::string CSVpath = resourceDir + "/data/data.csv";
+    readCSVtoEigen(CSVpath);
+    std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
     if(&cfg_["render"])
       render_ = cfg_["render"].template As<bool>();
@@ -53,6 +101,13 @@ class VectorizedEnvironment {
     for (int i = 0; i < num_envs_; i++) {
       // only the first environment is visualized
       environments_[i]->init();
+
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> distrib(0, globalMatrices.size() - 1);
+      int random_index = distrib(gen);
+      environments_[i]->flushTrajectory(globalMatrices[random_index]);
+
       environments_[i]->reset();
     }
 
@@ -74,8 +129,16 @@ class VectorizedEnvironment {
 
   // resets all environments and returns observation
   void reset() {
-    for (auto env: environments_)
+    for (auto env: environments_) {
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> distrib(0, globalMatrices.size() - 1);
+      int random_index = distrib(gen);
+      env->flushTrajectory(globalMatrices[random_index]);
+
       env->reset();
+    }
+
   }
 
   void observe(Eigen::Ref<EigenRowMajorMat> &ob, bool updateStatistics) {
@@ -184,6 +247,8 @@ class VectorizedEnvironment {
       reward[agentId] += terminalReward;
     }
   }
+
+  std::vector<Eigen::MatrixXd> trajectories;
 
   std::vector<ChildEnvironment *> environments_;
   std::vector<std::map<std::string, float>> rewardInformation_;

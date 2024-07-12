@@ -5,18 +5,24 @@ environment:
   render: True
 # just testing commenting
   num_envs: 100
-  eval_every_n: 10
+  eval_every_n: 500
   num_threads: 30
   simulation_dt: 0.005
   control_dt: 0.02
-  max_time: 1.12
+  max_time: 4.0
   action_std: 0.3
   reward:
-    forwardVel:
-      coeff: 0.3
-    torque:
-      coeff: -4e-5
+    compos:
+      coeff: 0.2
+    dofpos:
+      coeff: 0.2
+    linvel:
+      coeff: 0.4
+    angvel:
+      coeff: 0.2
+    quat:
+      coeff: 0.2
 
 architecture:
-  policy_net: [128, 128]
+  policy_net: [128, 256, 128]
   value_net: [128, 128]
