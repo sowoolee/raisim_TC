@@ -56,7 +56,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     anymal_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 231;
+    obDim_ = 235;
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
@@ -88,8 +88,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// visualize if it is the first environment
     if (visualizable_) {
       server_ = std::make_unique<raisim::RaisimServer>(world_.get());
-      server_->launchServer(8088);
+      server_->launchServer();
       server_->focusOn(anymal_);
+      anymal_vref_ = server_->addVisualArticulatedSystem("v_ref", resourceDir_+"/go1/go1.urdf", 0,0,0,0.5);
+      posSphere_ = server_->addVisualSphere("debugSphere", 0.03, 0,1,0,1);
     }
   }
 
@@ -100,9 +102,17 @@ class ENVIRONMENT : public RaisimGymEnv {
     gc_init_.segment(3,1) = reference_.row(0).segment(6,1);
     gc_init_.segment(4,3) = reference_.row(0).segment(3,3);
     anymal_->setState(gc_init_, gv_init_);
-    anymal_kinematics_->setGeneralizedCoordinate(gc_init_);
-    raisim::Vec<3> test;
-    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FL_foot_fixed"),test);
+
+    anymal_kinematics_->setGeneralizedCoordinate(gc_); raisim::Vec<3> test;
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FL_foot_fixed"), test);
+    FL_footpos = test.e();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FR_foot_fixed"), test);
+    FR_footpos = test.e();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RL_foot_fixed"), test);
+    RL_footpos = test.e();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RR_foot_fixed"), test);
+    RR_footpos = test.e();
+
     t = 0;
     updateObservation();
   }
@@ -134,26 +144,60 @@ class ENVIRONMENT : public RaisimGymEnv {
       if(server_) server_->unlockVisualizationServerMutex();
     }
 
+    anymal_kinematics_->setGeneralizedCoordinate(gc_); raisim::Vec<3> test;
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FL_foot_fixed"), test);
+    FL_footpos = test.e();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FR_foot_fixed"), test);
+    FR_footpos = test.e();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RL_foot_fixed"), test);
+    RL_footpos = test.e();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RR_foot_fixed"), test);
+    RR_footpos = test.e();
+
+    raisim::Vec<4> quat, des_quat;
+    raisim::Mat<3,3> rot, des_rot;
+    quat[0] = gc_[3]; quat[1] = gc_[4]; quat[2] = gc_[5]; quat[3] = gc_[6];
+    des_quat[0] = targState_(3); des_quat[1] = targState_(4); des_quat[2] = targState_(5); des_quat[3] = targState_(6);
+    raisim::quatToRotMat(quat, rot); raisim::quatToRotMat(des_quat, des_rot);
+
+    footposDiff << 0, 0, 0, 0;
+    Eigen::Vector3d base_, base_ref;
+    base_ << gc_(0), gc_(1), gc_(2); base_ref << targState_(0), targState_(1), targState_(2);
+
+    anymal_kinematics_->setGeneralizedCoordinate(targState_.head(19));
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FL_foot_fixed"), test);
+    footposDiff(0) = ( des_rot.e().transpose()*(test.e() - base_ref) - rot.e().transpose()*(FL_footpos - base_) ).norm();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FR_foot_fixed"), test);
+    footposDiff(1) = ( des_rot.e().transpose()*(test.e() - base_ref) - rot.e().transpose()*(FR_footpos - base_) ).norm();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RL_foot_fixed"), test);
+    footposDiff(2) = ( des_rot.e().transpose()*(test.e() - base_ref) - rot.e().transpose()*(RL_footpos - base_) ).norm();
+    anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RR_foot_fixed"), test);
+    footposDiff(3) = ( des_rot.e().transpose()*(test.e() - base_ref) - rot.e().transpose()*(RR_footpos - base_) ).norm();
+
     posDiff = gc_.head(3) - targState_.segment(0,3);
     dofDiff = gc_.tail(12) - targState_.segment(7,12);
     linvelDiff = gv_.head(3) - targState_.segment(19,3);
     angvelDiff = gv_.segment(3,3) - targState_.segment(22,3);
 
-    Eigen::Quaterniond q1 = Eigen::Quaterniond(gc_[3], gc_[4], gc_[5], gc_[6]);
-    Eigen::Quaterniond q2 = Eigen::Quaterniond(targState_[3], targState_[4], targState_[5], targState_[6]);
-    Eigen::Quaterniond quatDiff = q1 * q2.conjugate();
+//    Eigen::Quaterniond q1 = Eigen::Quaterniond(gc_[3], gc_[4], gc_[5], gc_[6]);
+//    Eigen::Quaterniond q2 = Eigen::Quaterniond(targState_[3], targState_[4], targState_[5], targState_[6]);
+//    Eigen::Quaterniond quatDiff = q1 * q2.conjugate();
+    Eigen::VectorXd quatDiff(4);
+    quatDiff = gc_.segment(3,4) - targState_.segment(3,4);
 
+    rewards_.record("torque", anymal_->getGeneralizedForce().squaredNorm());
     rewards_.record("compos", exp(-2 * posDiff.norm()));
     rewards_.record("dofpos", exp(-2 * dofDiff.norm()));
+//    rewards_.record("footpos", exp(-2 * footposDiff.norm()));
+    rewards_.record("footpos", -log(2 * footposDiff.norm() + 1e-6));
     rewards_.record("linvel", exp(-2 * linvelDiff.norm()));
     rewards_.record("angvel", exp(-2 * angvelDiff.norm()));
-    rewards_.record("quat", exp(-2 * quatDiff.norm()));
+    rewards_.record("quat", exp(-0.5 * quatDiff.norm()));
 
     prevAction_ = pTarget12_;
     t += 1;
 
     updateObservation();
-
 
     return rewards_.sum();
   }
@@ -172,8 +216,10 @@ class ENVIRONMENT : public RaisimGymEnv {
         gc_.tail(12), /// joint angles
         bodyLinearVel_, bodyAngularVel_, /// body linear&angular velocity
         gv_.tail(12), /// joint velocity
-        prevAction_,
-        reference_.row(t - 1 + 1).transpose();
+        prevAction_, /// action history
+        FL_footpos(2), FR_footpos(2), RL_footpos(2), RR_footpos(2), /// foot height
+
+        reference_.row(t - 1 + 1).transpose(),
         reference_.row(t - 1 + 6).transpose(),
         reference_.row(t - 1 + 11).transpose(),
         reference_.row(t - 1 + 16).transpose(),
@@ -184,6 +230,9 @@ class ENVIRONMENT : public RaisimGymEnv {
                   reference_.row(t - 1 + 1).segment(3,3).transpose(),
                   reference_.row(t - 1 + 1).tail(30).transpose();
 
+    if (server_) {
+        anymal_vref_->setGeneralizedCoordinate(targState_);
+    }
   }
 
   void observe(Eigen::Ref<EigenVec> ob) final {
@@ -206,7 +255,6 @@ class ENVIRONMENT : public RaisimGymEnv {
   void curriculumUpdate() { };
 
   void flushTrajectory(const Eigen::MatrixXd& trajectory) {
-    // 트래젝토리를 업데이트하는 로직을 여기에 추가합니다.
     reference_ = trajectory;
   }
 
@@ -216,6 +264,9 @@ class ENVIRONMENT : public RaisimGymEnv {
   bool visualizable_ = false;
   raisim::ArticulatedSystem* anymal_;
   raisim::ArticulatedSystem* anymal_kinematics_;
+  raisim::ArticulatedSystemVisual* anymal_vref_;
+  raisim::Visuals* posSphere_;
+
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   double terminalRewardCoeff_ = -10.;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
@@ -227,6 +278,9 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::VectorXd dofDiff = Eigen::VectorXd::Zero(12);
   Eigen::Vector3d linvelDiff = Eigen::Vector3d::Zero();
   Eigen::Vector3d angvelDiff = Eigen::Vector3d::Zero();
+  Eigen::Vector3d FL_footpos, FR_footpos, RL_footpos, RR_footpos;
+  Eigen::VectorXd footposDiff = Eigen::VectorXd::Zero(4);
+  double footposDiffnorm_;
 
   /// these variables are not in use. They are placed to show you how to create a random number sampler.
   std::normal_distribution<double> normDist_;

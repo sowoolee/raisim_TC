@@ -15,13 +15,17 @@ environment:
     compos:
       coeff: 0.2
     dofpos:
-      coeff: 0.2
+      coeff: 0.0
+    footpos:
+      coeff: 0.1 # 0.2이랑 더 좋은거 선택
     linvel:
-      coeff: 0.4
+      coeff: 0.7
     angvel:
       coeff: 0.2
     quat:
-      coeff: 0.2
+      coeff: 0.1
+    torque:
+      coeff: -4e-6 # -1e-6이랑 더 좋은거 선택
 
 architecture:
   policy_net: [128, 256, 128]

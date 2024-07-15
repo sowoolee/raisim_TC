@@ -67,7 +67,7 @@ class VectorizedEnvironment {
       : resourceDir_(resourceDir), cfgString_(cfg), normalizeObservation_(normalizeObservation) {
     Yaml::Parse(cfg_, cfg);
 
-    std::string CSVpath = resourceDir + "/data/data.csv";
+    std::string CSVpath = resourceDir + "/data/trot_fwd.csv";
     readCSVtoEigen(CSVpath);
     std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
