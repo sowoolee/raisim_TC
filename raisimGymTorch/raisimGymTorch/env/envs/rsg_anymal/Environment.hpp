@@ -50,13 +50,13 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     /// set pd gains
     Eigen::VectorXd jointPgain(gvDim_), jointDgain(gvDim_);
-    jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(50.0);
-    jointDgain.setZero(); jointDgain.tail(nJoints_).setConstant(0.2);
+    jointPgain.setZero(); jointPgain.tail(nJoints_).setConstant(20.0);
+    jointDgain.setZero(); jointDgain.tail(nJoints_).setConstant(0.5);
     anymal_->setPdGains(jointPgain, jointDgain);
     anymal_->setGeneralizedForce(Eigen::VectorXd::Zero(gvDim_));
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
-    obDim_ = 235;
+    obDim_ = 239;
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
@@ -141,7 +141,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
       world_->integrate();
-      if(server_) server_->unlockVisualizationServerMutex();
+      if(server_) {
+          if (isRendering_) std::this_thread::sleep_for(std::chrono::duration<double>(simulation_dt_));
+          server_->unlockVisualizationServerMutex();
+      }
     }
 
     anymal_kinematics_->setGeneralizedCoordinate(gc_); raisim::Vec<3> test;
@@ -175,6 +178,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     footposDiff(3) = ( des_rot.e().transpose()*(test.e() - base_ref) - rot.e().transpose()*(RR_footpos - base_) ).norm();
 
     posDiff = gc_.head(3) - targState_.segment(0,3);
+    posDiff << (gc_.head(2) - targState_.head(2)), 0;
     dofDiff = gc_.tail(12) - targState_.segment(7,12);
     linvelDiff = gv_.head(3) - targState_.segment(19,3);
     angvelDiff = gv_.segment(3,3) - targState_.segment(22,3);
@@ -187,12 +191,15 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     rewards_.record("torque", anymal_->getGeneralizedForce().squaredNorm());
     rewards_.record("compos", exp(-2 * posDiff.norm()));
-    rewards_.record("dofpos", exp(-2 * dofDiff.norm()));
+//    rewards_.record("dofpos", exp(-2 * dofDiff.norm()));
 //    rewards_.record("footpos", exp(-2 * footposDiff.norm()));
     rewards_.record("footpos", -log(2 * footposDiff.norm() + 1e-6));
-    rewards_.record("linvel", exp(-2 * linvelDiff.norm()));
-    rewards_.record("angvel", exp(-2 * angvelDiff.norm()));
+//    rewards_.record("linvel", exp(-2 * linvelDiff.norm()));
+    rewards_.record("linvel", -log(linvelDiff.norm() + 1e-6));
+//    rewards_.record("angvel", exp(-2 * angvelDiff.norm()));
+    rewards_.record("angvel", -log(angvelDiff.norm() + 1e-6));
     rewards_.record("quat", exp(-0.5 * quatDiff.norm()));
+    rewards_.record("dofvel", exp(-1/12 * (gv_.tail(12).norm())));
 
     prevAction_ = pTarget12_;
     t += 1;
@@ -211,8 +218,29 @@ class ENVIRONMENT : public RaisimGymEnv {
     bodyLinearVel_ = rot.e().transpose() * gv_.segment(0, 3);
     bodyAngularVel_ = rot.e().transpose() * gv_.segment(3, 3);
 
+    footContactBool_.setZero();
+    for (auto &contact: anymal_->getContacts()) {
+        if (contact.getlocalBodyIndex() == anymal_->getBodyIdx("FL_foot_fixed") ||
+            contact.getlocalBodyIndex() == anymal_->getBodyIdx("FL_calf")) {
+            footContactBool_(0) = 1;
+        }
+        if (contact.getlocalBodyIndex() == anymal_->getBodyIdx("FR_foot_fixed") ||
+            contact.getlocalBodyIndex() == anymal_->getBodyIdx("FR_calf")) {
+            footContactBool_(1) = 1;
+        }
+        if (contact.getlocalBodyIndex() == anymal_->getBodyIdx("RL_foot_fixed") ||
+            contact.getlocalBodyIndex() == anymal_->getBodyIdx("RL_calf")) {
+            footContactBool_(2) = 1;
+        }
+        if (contact.getlocalBodyIndex() == anymal_->getBodyIdx("RL_foot_fixed") ||
+            contact.getlocalBodyIndex() == anymal_->getBodyIdx("RR_calf")) {
+            footContactBool_(3) = 1;
+        }
+    }
+
     obDouble_ << gc_[2], /// body height
-        rot.e().row(2).transpose(), /// body orientation
+        gc_.segment(3,4), /// body orientation
+        rot.e().row(2).transpose(), /// gravity vector
         gc_.tail(12), /// joint angles
         bodyLinearVel_, bodyAngularVel_, /// body linear&angular velocity
         gv_.tail(12), /// joint velocity
@@ -258,6 +286,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     reference_ = trajectory;
   }
 
+  void isRendering(bool isRenderingNow) {
+      isRendering_ = isRenderingNow;
+  }
+
  private:
   int t = 0;
   int gcDim_, gvDim_, nJoints_;
@@ -280,7 +312,9 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::Vector3d angvelDiff = Eigen::Vector3d::Zero();
   Eigen::Vector3d FL_footpos, FR_footpos, RL_footpos, RR_footpos;
   Eigen::VectorXd footposDiff = Eigen::VectorXd::Zero(4);
-  double footposDiffnorm_;
+  Eigen::VectorXd footContactBool_ = Eigen::VectorXd::Zero(4);
+  double minFootHeight = 0;
+  bool isRendering_ = false;
 
   /// these variables are not in use. They are placed to show you how to create a random number sampler.
   std::normal_distribution<double> normDist_;

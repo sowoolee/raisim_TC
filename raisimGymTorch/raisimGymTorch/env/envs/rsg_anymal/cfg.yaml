@@ -17,15 +17,17 @@ environment:
     dofpos:
       coeff: 0.0
     footpos:
-      coeff: 0.1 # 0.2이랑 더 좋은거 선택
+      coeff: 0.25 # 0.2이랑 더 좋은거 선택
     linvel:
-      coeff: 0.7
+      coeff: 0.25 # exp로 줄땐 0.7, log로 줄땐 0.25
     angvel:
-      coeff: 0.2
+      coeff: 0.1 # exp로 줄땐 0.2, log로 줄땐 0.1
     quat:
       coeff: 0.1
     torque:
       coeff: -4e-6 # -1e-6이랑 더 좋은거 선택
+    dofvel:
+      coeff: 0.1
 
 architecture:
   policy_net: [128, 256, 128]

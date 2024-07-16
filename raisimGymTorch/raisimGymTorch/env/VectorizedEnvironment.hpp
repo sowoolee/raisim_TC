@@ -22,7 +22,7 @@ std::vector<Eigen::MatrixXd> globalMatrices;
 void readCSVtoEigen(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
-  globalMatrices.clear(); // 기존 데이터를 초기화
+//  globalMatrices.clear(); // 기존 데이터를 초기화
 
   const int rows_per_matrix = 250;
   const int cols_per_matrix = 37;
@@ -67,8 +67,14 @@ class VectorizedEnvironment {
       : resourceDir_(resourceDir), cfgString_(cfg), normalizeObservation_(normalizeObservation) {
     Yaml::Parse(cfg_, cfg);
 
-    std::string CSVpath = resourceDir + "/data/trot_fwd.csv";
-    readCSVtoEigen(CSVpath);
+//    std::string CSVpath = resourceDir + "/data/trot_all.csv";
+//    readCSVtoEigen(CSVpath);
+//    std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
+//    readCSVtoEigen(CSVpath1);
+    std::string CSVpath2 = resourceDir + "/data/pace_all.csv";
+    readCSVtoEigen(CSVpath2);
+//    std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
+//    readCSVtoEigen(CSVpath3);
     std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
     if(&cfg_["render"])
@@ -139,6 +145,7 @@ class VectorizedEnvironment {
       env->reset();
     }
 
+
   }
 
   void observe(Eigen::Ref<EigenRowMajorMat> &ob, bool updateStatistics) {
@@ -159,8 +166,20 @@ class VectorizedEnvironment {
       perAgentStep(i, action, reward, done);
   }
 
-  void turnOnVisualization() { if(render_) environments_[0]->turnOnVisualization(); }
-  void turnOffVisualization() { if(render_) environments_[0]->turnOffVisualization(); }
+  void turnOnVisualization() {
+    if(render_) {
+      environments_[0]->turnOnVisualization();
+      environments_[0]->isRendering(true);
+    }
+  }
+
+  void turnOffVisualization() {
+    if(render_) {
+      environments_[0]->turnOffVisualization();
+      environments_[0]->isRendering(false);
+    }
+  }
+
   void startRecordingVideo(const std::string& videoName) { if(render_) environments_[0]->startRecordingVideo(videoName); }
   void stopRecordingVideo() { if(render_) environments_[0]->stopRecordingVideo(); }
   void getObStatistics(Eigen::Ref<EigenVec> &mean, Eigen::Ref<EigenVec> &var, float &count) {
