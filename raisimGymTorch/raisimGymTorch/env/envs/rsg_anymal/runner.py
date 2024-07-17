@@ -84,7 +84,7 @@ reward_analyzer = RewardAnalyzer(env, ppo.writer)
 if mode == 'retrain':
     load_param(weight_path, env, actor, critic, ppo.optimizer, saver.data_dir)
 
-for update in range(10001):
+for update in range(50001):
     start = time.time()
     env.reset()
     reward_sum = 0

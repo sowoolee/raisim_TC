@@ -67,14 +67,14 @@ class VectorizedEnvironment {
       : resourceDir_(resourceDir), cfgString_(cfg), normalizeObservation_(normalizeObservation) {
     Yaml::Parse(cfg_, cfg);
 
-//    std::string CSVpath = resourceDir + "/data/trot_all.csv";
-//    readCSVtoEigen(CSVpath);
-//    std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
-//    readCSVtoEigen(CSVpath1);
+    std::string CSVpath = resourceDir + "/data/trot_all.csv";
+    readCSVtoEigen(CSVpath);
+    std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
+    readCSVtoEigen(CSVpath1);
     std::string CSVpath2 = resourceDir + "/data/pace_all.csv";
     readCSVtoEigen(CSVpath2);
-//    std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
-//    readCSVtoEigen(CSVpath3);
+    std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
+    readCSVtoEigen(CSVpath3);
     std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
     if(&cfg_["render"])

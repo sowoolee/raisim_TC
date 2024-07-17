@@ -126,18 +126,6 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     anymal_->setPdTarget(pTarget_, vTarget_);
 
-    // Eigen::VectorXd targgc, targgv;
-    // targgc.setZero(19); targgv.setZero(18);
-    // targgc << reference_.row(t).head(2).transpose(),
-    //           reference_.row(t)(2),
-    //           reference_.row(t)(6),
-    //           reference_.row(t).segment(3,3).transpose(),
-    //           reference_.row(t).segment(7,12).transpose();
-    // targgv = reference_.row(t).tail(18);
-    // targgc = targState_.head(19);
-    // targgv = targState_.tail(18);
-    // anymal_->setState(targgc, targgv);
-
     for(int i=0; i< int(control_dt_ / simulation_dt_ + 1e-10); i++){
       if(server_) server_->lockVisualizationServerMutex();
       world_->integrate();
