@@ -31,7 +31,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     /// add objects
     anymal_ = world_->addArticulatedSystem(resourceDir_+"/go1/go1.urdf");
     anymal_kinematics_= new ArticulatedSystem(resourceDir_+"/go1/go1.urdf");
-    anymal_->setName("anymal");
+    anymal_->setName("go1");
     anymal_->setControlMode(raisim::ControlMode::PD_PLUS_FEEDFORWARD_TORQUE);
     world_->addGround();
 
@@ -60,7 +60,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
-    prevAction_.setZero(nJoints_); targState_.setZero(37);
+    prevAction_.setZero(nJoints_); targState_.setZero(37); currentState_.setZero(37);
 
     /// action scaling
     actionMean_ = gc_init_.tail(nJoints_);
@@ -91,7 +91,7 @@ class ENVIRONMENT : public RaisimGymEnv {
       server_->launchServer();
       server_->focusOn(anymal_);
       anymal_vref_ = server_->addVisualArticulatedSystem("v_ref", resourceDir_+"/go1/go1.urdf", 0,0,0,0.5);
-      posSphere_ = server_->addVisualSphere("debugSphere", 0.03, 0,1,0,1);
+      // posSphere_ = server_->addVisualSphere("debugSphere", 0.03, 0,1,0,1);
     }
   }
 
@@ -115,6 +115,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     t = 0;
     updateObservation();
+    currentState_ << gc_, gv_;
   }
 
   float step(const Eigen::Ref<EigenVec>& action) final {
@@ -193,6 +194,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     t += 1;
 
     updateObservation();
+    currentState_ << gc_, gv_;
 
     return rewards_.sum();
   }
@@ -272,10 +274,16 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void flushTrajectory(const Eigen::MatrixXd& trajectory) {
     reference_ = trajectory;
+    t = 0;
+    updateObservation();
   }
 
   void isRendering(bool isRenderingNow) {
       isRendering_ = isRenderingNow;
+  }
+
+  void getState(Eigen::Ref<EigenVec> st) {
+      st = currentState_.cast<float>();
   }
 
  private:
@@ -290,7 +298,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   double terminalRewardCoeff_ = -10.;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
-  Eigen::VectorXd prevAction_, targState_;
+  Eigen::VectorXd prevAction_, targState_, currentState_;
   Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
   std::set<size_t> footIndices_;
   Eigen::MatrixXd reference_;

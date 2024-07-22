@@ -28,6 +28,8 @@ class RaisimGymVecEnv:
         self.count = 0.0
         self.mean = np.zeros(self.num_obs, dtype=np.float32)
         self.var = np.zeros(self.num_obs, dtype=np.float32)
+        self._state = np.zeros([self.num_envs, 37], dtype=np.float32)
+        self._ref = np.zeros([56, 37], dtype=np.float32)
 
     def seed(self, seed=None):
         self.wrapper.setSeed(seed)
@@ -66,6 +68,14 @@ class RaisimGymVecEnv:
     def observe(self, update_statistics=True):
         self.wrapper.observe(self._observation, update_statistics)
         return self._observation
+
+    def observe_state(self):
+        self.wrapper.getState(self._state)
+        return self._state
+
+    def update_reference(self, ref):
+        self._ref = ref
+        self.wrapper.updateReference(self._ref)
 
     def get_reward_info(self):
         return self.wrapper.getRewardInfo()
