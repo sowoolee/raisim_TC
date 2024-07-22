@@ -7,7 +7,7 @@ import math
 import time
 import torch
 import argparse
-
+import numpy as np
 
 # configuration
 parser = argparse.ArgumentParser()
@@ -46,6 +46,9 @@ else:
     n_steps = math.floor(cfg['environment']['max_time'] / cfg['environment']['control_dt'])
     total_steps = n_steps * 1
     start_step_id = 0
+
+    st = env.observe_state()
+    env.update_reference(np.zeros([56, 37], dtype=np.float32))
 
     print("Visualizing and evaluating the policy: ", weight_path)
     loaded_graph = ppo_module.MLP(cfg['architecture']['policy_net'], torch.nn.LeakyReLU, ob_dim, act_dim)

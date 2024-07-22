@@ -187,6 +187,18 @@ class VectorizedEnvironment {
   void setObStatistics(Eigen::Ref<EigenVec> &mean, Eigen::Ref<EigenVec> &var, float count) {
     obMean_ = mean; obVar_ = var; obCount_ = count; }
 
+  void getState(Eigen::Ref<EigenRowMajorMat> &st){
+      for (int i = 0; i < num_envs_; i++)
+          environments_[i]->getState(st.row(i));
+  }
+
+  void updateRef(Eigen::Ref<EigenRowMajorMat> &ref){
+      Eigen::MatrixXd convertedRef = ref.cast<double>();
+      for (int i = 0; i < num_envs_; i++){
+          environments_[i]->flushTrajectory(convertedRef);
+      }
+  }
+
   void setSeed(int seed) {
     int seed_inc = seed;
 

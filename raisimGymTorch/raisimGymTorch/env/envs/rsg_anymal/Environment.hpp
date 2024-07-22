@@ -60,7 +60,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
-    prevAction_.setZero(nJoints_); targState_.setZero(37);
+    prevAction_.setZero(nJoints_); targState_.setZero(37); currentState_.setZero(37);
 
     /// action scaling
     actionMean_ = gc_init_.tail(nJoints_);
@@ -113,6 +113,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RR_foot_fixed"), test);
     RR_footpos = test.e();
 
+    currentState_ << gc_, gv_;
+
     t = 0;
     updateObservation();
   }
@@ -134,6 +136,8 @@ class ENVIRONMENT : public RaisimGymEnv {
           server_->unlockVisualizationServerMutex();
       }
     }
+
+    currentState_ << gc_, gv_;
 
     anymal_kinematics_->setGeneralizedCoordinate(gc_); raisim::Vec<3> test;
     anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("FL_foot_fixed"), test);
@@ -272,10 +276,15 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void flushTrajectory(const Eigen::MatrixXd& trajectory) {
     reference_ = trajectory;
+    t = 0;
   }
 
   void isRendering(bool isRenderingNow) {
       isRendering_ = isRenderingNow;
+  }
+
+  void getState(Eigen::Ref<EigenVec> st) {
+      st = currentState_.cast<float>();
   }
 
  private:
@@ -290,7 +299,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   double terminalRewardCoeff_ = -10.;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
-  Eigen::VectorXd prevAction_, targState_;
+  Eigen::VectorXd prevAction_, targState_, currentState_;
   Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
   std::set<size_t> footIndices_;
   Eigen::MatrixXd reference_;
