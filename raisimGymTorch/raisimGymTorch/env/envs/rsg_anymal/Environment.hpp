@@ -177,6 +177,8 @@ class ENVIRONMENT : public RaisimGymEnv {
 //    Eigen::Quaterniond quatDiff = q1 * q2.conjugate();
     Eigen::VectorXd quatDiff(4);
     quatDiff = gc_.segment(3,4) - targState_.segment(3,4);
+    Eigen::VectorXd dofvel(12);
+    dofvel = gv_.segment(6, 12);
 
     rewards_.record("torque", anymal_->getGeneralizedForce().squaredNorm());
     rewards_.record("compos", exp(-2 * posDiff.norm()));
@@ -188,7 +190,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 //    rewards_.record("angvel", exp(-2 * angvelDiff.norm()));
     rewards_.record("angvel", -log(angvelDiff.norm() + 1e-6));
     rewards_.record("quat", exp(-0.5 * quatDiff.norm()));
-    rewards_.record("dofvel", exp(-1/12 * (gv_.tail(12).norm())));
+    rewards_.record("dofvel", exp(-0.5 * dofvel.norm()));
 
     prevAction_ = pTarget12_;
     t += 1;
@@ -249,6 +251,11 @@ class ENVIRONMENT : public RaisimGymEnv {
                   reference_.row(t - 1 + 1).tail(30).transpose();
 
     if (server_) {
+        if (gait_num_ == 1) anymal_vref_->setColor(0.8,0,0,0.5);
+        else if (gait_num_ == 2) anymal_vref_->setColor(1.0, 1.0, 0, 0.5);
+        else if (gait_num_ == 3) anymal_vref_->setColor(0,0.8,0,0.5);
+        else if (gait_num_ == 0) anymal_vref_->setColor(0,0,0.8,0.5);
+        else anymal_vref_->setColor(0.,0,0,0.5);
         anymal_vref_->setGeneralizedCoordinate(targState_);
     }
   }
@@ -272,8 +279,10 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void curriculumUpdate() { };
 
-  void flushTrajectory(const Eigen::MatrixXd& trajectory) {
+  void flushTrajectory(const Eigen::MatrixXd& trajectory, const int gait_num = -1) {
     reference_ = trajectory;
+    gait_num_ = gait_num;
+//    if (visualizable_) std::cout << "Gait number is " << gait_num_ << std::endl;
     t = 0;
     updateObservation();
   }
@@ -309,7 +318,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::Vector3d FL_footpos, FR_footpos, RL_footpos, RR_footpos;
   Eigen::VectorXd footposDiff = Eigen::VectorXd::Zero(4);
   Eigen::VectorXd footContactBool_ = Eigen::VectorXd::Zero(4);
-  double minFootHeight = 0;
+  int gait_num_ = -1;
   bool isRendering_ = false;
 
   /// these variables are not in use. They are placed to show you how to create a random number sampler.

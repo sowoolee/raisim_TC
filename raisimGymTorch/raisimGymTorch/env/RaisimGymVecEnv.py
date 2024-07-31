@@ -73,9 +73,9 @@ class RaisimGymVecEnv:
         self.wrapper.getState(self._state)
         return self._state
 
-    def update_reference(self, ref):
+    def update_reference(self, ref, gait_num=-1):
         self._ref = ref
-        self.wrapper.updateReference(self._ref)
+        self.wrapper.updateReference(self._ref, gait_num)
 
     def get_reward_info(self):
         return self.wrapper.getRewardInfo()

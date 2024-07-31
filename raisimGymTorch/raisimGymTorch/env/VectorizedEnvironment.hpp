@@ -23,26 +23,42 @@ void readCSVtoEigen(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
 //  globalMatrices.clear(); // 기존 데이터를 초기화
-
   const int rows_per_matrix = 250;
   const int cols_per_matrix = 37;
 
   if (file.is_open()) {
     int row_count = 0;
     Eigen::MatrixXd mat(rows_per_matrix, cols_per_matrix);
+    Eigen::Vector2d first_row_vals(0,0);
+    bool first_row_read = false;
+
     while (std::getline(file, line)) {
-      std::stringstream lineStream(line);
-      std::string cell;
-      int col = 0;
-      while (std::getline(lineStream, cell, ',')) {
-        mat(row_count % rows_per_matrix, col) = std::stod(cell);
-        col++;
-      }
-      row_count++;
-      if (row_count % rows_per_matrix == 0) {
-        globalMatrices.push_back(mat);
-        mat = Eigen::MatrixXd(rows_per_matrix, cols_per_matrix); // 새로운 행렬 초기화
-      }
+        std::stringstream lineStream(line);
+        std::string cell;
+        int col = 0;
+        while (std::getline(lineStream, cell, ',')) {
+            mat(row_count % rows_per_matrix, col) = std::stod(cell);
+            col++;
+        }
+
+        // starting at (0,0)
+        if (!first_row_read) {
+            first_row_vals(0) = mat(row_count % rows_per_matrix, 0);
+            first_row_vals(1) = mat(row_count % rows_per_matrix, 1);
+            mat(row_count % rows_per_matrix, 0) -= first_row_vals(0);
+            mat(row_count % rows_per_matrix, 1) -= first_row_vals(1);
+            first_row_read = true;
+        } else {
+            mat(row_count % rows_per_matrix, 0) -= first_row_vals(0);
+            mat(row_count % rows_per_matrix, 1) -= first_row_vals(1);
+        }
+
+        row_count++;
+        if (row_count % rows_per_matrix == 0) {
+            globalMatrices.push_back(mat);
+            mat = Eigen::MatrixXd(rows_per_matrix, cols_per_matrix); // 새로운 행렬 초기화
+            first_row_read = false;
+        }
     }
     // 파일이 끝난 후, 남은 데이터가 있는 경우 처리
     if (row_count % rows_per_matrix != 0) {
@@ -69,12 +85,16 @@ class VectorizedEnvironment {
 
     std::string CSVpath = resourceDir + "/data/trot_all.csv";
     readCSVtoEigen(CSVpath);
+    trot_idx = globalMatrices.size() - 1;
     std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
     readCSVtoEigen(CSVpath1);
+    bound_idx = globalMatrices.size() - 1;
     std::string CSVpath2 = resourceDir + "/data/pace_all.csv";
     readCSVtoEigen(CSVpath2);
+    pace_idx = globalMatrices.size() - 1;
     std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
     readCSVtoEigen(CSVpath3);
+    pronk_idx = globalMatrices.size() - 1;
     std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
     if(&cfg_["render"])
@@ -112,8 +132,15 @@ class VectorizedEnvironment {
       std::mt19937 gen(rd());
       std::uniform_int_distribution<> distrib(0, globalMatrices.size() - 1);
       int random_index = distrib(gen);
-      environments_[i]->flushTrajectory(globalMatrices[random_index]);
 
+      int gait_num;
+      if (random_index <= trot_idx) gait_num = 1;
+      else if (random_index <= bound_idx) gait_num = 2;
+      else if (random_index <= pace_idx) gait_num = 3;
+      else if (random_index <= pronk_idx) gait_num = 0;
+      else gait_num = -1;
+
+      environments_[i]->flushTrajectory(globalMatrices[random_index], gait_num);
       environments_[i]->reset();
     }
 
@@ -140,7 +167,14 @@ class VectorizedEnvironment {
       std::mt19937 gen(rd());
       std::uniform_int_distribution<> distrib(0, globalMatrices.size() - 1);
       int random_index = distrib(gen);
-      env->flushTrajectory(globalMatrices[random_index]);
+
+      int gait_num;
+      if (random_index <= trot_idx) gait_num = 1;
+      else if (random_index <= bound_idx) gait_num = 2;
+      else if (random_index <= pace_idx) gait_num = 3;
+      else if (random_index <= pronk_idx) gait_num = 0;
+      else gait_num = -1;
+      env->flushTrajectory(globalMatrices[random_index], gait_num);
 
       env->reset();
     }
@@ -192,10 +226,10 @@ class VectorizedEnvironment {
           environments_[i]->getState(st.row(i));
   }
 
-  void updateRef(Eigen::Ref<EigenRowMajorMat> &ref){
+  void updateRef(Eigen::Ref<EigenRowMajorMat> &ref, int &gait_num){
       Eigen::MatrixXd convertedRef = ref.cast<double>();
       for (int i = 0; i < num_envs_; i++){
-          environments_[i]->flushTrajectory(convertedRef);
+          environments_[i]->flushTrajectory(convertedRef, gait_num);
       }
   }
 
@@ -280,6 +314,7 @@ class VectorizedEnvironment {
   }
 
   std::vector<Eigen::MatrixXd> trajectories;
+  int trot_idx = 0, bound_idx = 0, pace_idx = 0, pronk_idx = 0;
 
   std::vector<ChildEnvironment *> environments_;
   std::vector<std::map<std::string, float>> rewardInformation_;
