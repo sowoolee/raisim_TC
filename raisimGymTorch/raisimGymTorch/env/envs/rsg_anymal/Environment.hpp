@@ -60,7 +60,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
     obDouble_.setZero(obDim_);
 
-    prevAction_.setZero(nJoints_); targState_.setZero(37); currentState_.setZero(37);
+    prevAction_.setZero(nJoints_); targState_.setZero(37); currentState_.setZero(37); vtargState_.setZero(37);
 
     /// action scaling
     actionMean_ = gc_init_.tail(nJoints_);
@@ -250,12 +250,18 @@ class ENVIRONMENT : public RaisimGymEnv {
                   reference_.row(t - 1 + 1).segment(3,3).transpose(),
                   reference_.row(t - 1 + 1).tail(30).transpose();
 
+    vtargState_ << vreference_.row(t - 1 + 1).head(3).transpose(),
+                vreference_.row(t - 1 + 1)(6),
+                vreference_.row(t - 1 + 1).segment(3,3).transpose(),
+                vreference_.row(t - 1 + 1).tail(30).transpose();
+
     if (server_) {
         if (gait_num_ == 1) anymal_vref_->setColor(0.8,0,0,0.5);
         else if (gait_num_ == 2) anymal_vref_->setColor(1.0, 1.0, 0, 0.5);
         else if (gait_num_ == 3) anymal_vref_->setColor(0,0.8,0,0.5);
         else if (gait_num_ == 0) anymal_vref_->setColor(0,0,0.8,0.5);
         else anymal_vref_->setColor(0.,0,0,0.5);
+        /// in evaluation, set replace this with vtargState_
         anymal_vref_->setGeneralizedCoordinate(targState_);
     }
   }
@@ -281,6 +287,12 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   void flushTrajectory(const Eigen::MatrixXd& trajectory, const int gait_num = -1) {
     reference_ = trajectory;
+
+    anymal_->getState(gc_,gv_);
+    vreference_ = trajectory;
+    /// use this line in evaluation
+    //  vreference_.leftCols(2).rowwise() += gc_.head(2).transpose();
+
     gait_num_ = gait_num;
 //    if (visualizable_) std::cout << "Gait number is " << gait_num_ << std::endl;
     t = 0;
@@ -307,10 +319,10 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   double terminalRewardCoeff_ = -10.;
   Eigen::VectorXd actionMean_, actionStd_, obDouble_;
-  Eigen::VectorXd prevAction_, targState_, currentState_;
+  Eigen::VectorXd prevAction_, targState_, currentState_, vtargState_;
   Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
   std::set<size_t> footIndices_;
-  Eigen::MatrixXd reference_;
+  Eigen::MatrixXd reference_; Eigen::MatrixXd vreference_;
   Eigen::Vector3d posDiff = Eigen::Vector3d::Zero();
   Eigen::VectorXd dofDiff = Eigen::VectorXd::Zero(12);
   Eigen::Vector3d linvelDiff = Eigen::Vector3d::Zero();

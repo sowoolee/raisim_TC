@@ -19,11 +19,11 @@
 std::vector<Eigen::MatrixXd> globalMatrices;
 
 // CSV 파일을 읽어 전역 벡터로 변환하는 함수
-void readCSVtoEigen(const std::string& filename) {
+void readCSVtoEigen(const std::string& filename, const int episode_length = 250) {
   std::ifstream file(filename);
   std::string line;
 //  globalMatrices.clear(); // 기존 데이터를 초기화
-  const int rows_per_matrix = 250;
+  const int rows_per_matrix = episode_length;
   const int cols_per_matrix = 37;
 
   if (file.is_open()) {
@@ -85,16 +85,20 @@ class VectorizedEnvironment {
 
     std::string CSVpath = resourceDir + "/data/trot_all.csv";
     readCSVtoEigen(CSVpath);
-    trot_idx = globalMatrices.size() - 1;
+    trot_idx = globalMatrices.size();
     std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
     readCSVtoEigen(CSVpath1);
-    bound_idx = globalMatrices.size() - 1;
+    bound_idx = globalMatrices.size();
     std::string CSVpath2 = resourceDir + "/data/pace_all.csv";
     readCSVtoEigen(CSVpath2);
-    pace_idx = globalMatrices.size() - 1;
+    pace_idx = globalMatrices.size();
     std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
     readCSVtoEigen(CSVpath3);
-    pronk_idx = globalMatrices.size() - 1;
+    pronk_idx = globalMatrices.size();
+
+//    std::string CSVpath4 = resourceDir + "/data/backflip.csv";
+//    readCSVtoEigen(CSVpath4, 76);
+
     std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
     if(&cfg_["render"])
@@ -134,10 +138,10 @@ class VectorizedEnvironment {
       int random_index = distrib(gen);
 
       int gait_num;
-      if (random_index <= trot_idx) gait_num = 1;
-      else if (random_index <= bound_idx) gait_num = 2;
-      else if (random_index <= pace_idx) gait_num = 3;
-      else if (random_index <= pronk_idx) gait_num = 0;
+      if (random_index < trot_idx) gait_num = 1;
+      else if (random_index < bound_idx) gait_num = 2;
+      else if (random_index < pace_idx) gait_num = 3;
+      else if (random_index < pronk_idx) gait_num = 0;
       else gait_num = -1;
 
       environments_[i]->flushTrajectory(globalMatrices[random_index], gait_num);
@@ -169,10 +173,10 @@ class VectorizedEnvironment {
       int random_index = distrib(gen);
 
       int gait_num;
-      if (random_index <= trot_idx) gait_num = 1;
-      else if (random_index <= bound_idx) gait_num = 2;
-      else if (random_index <= pace_idx) gait_num = 3;
-      else if (random_index <= pronk_idx) gait_num = 0;
+      if (random_index < trot_idx) gait_num = 1;
+      else if (random_index < bound_idx) gait_num = 2;
+      else if (random_index < pace_idx) gait_num = 3;
+      else if (random_index < pronk_idx) gait_num = 0;
       else gait_num = -1;
       env->flushTrajectory(globalMatrices[random_index], gait_num);
 
