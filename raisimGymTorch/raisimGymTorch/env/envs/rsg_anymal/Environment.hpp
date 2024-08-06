@@ -98,9 +98,11 @@ class ENVIRONMENT : public RaisimGymEnv {
   void init() final { }
 
   void reset() final {
-    gc_init_.segment(0,2) = reference_.row(0).segment(0,2);
+    gc_init_.segment(0,3) = reference_.row(0).segment(0,3);
     gc_init_.segment(3,1) = reference_.row(0).segment(6,1);
     gc_init_.segment(4,3) = reference_.row(0).segment(3,3);
+    gc_init_.segment(7,12) = reference_.row(0).segment(7,12);
+    gv_init_ = reference_.row(0).tail(18);
     anymal_->setState(gc_init_, gv_init_);
 
     anymal_kinematics_->setGeneralizedCoordinate(gc_); raisim::Vec<3> test;
@@ -167,10 +169,11 @@ class ENVIRONMENT : public RaisimGymEnv {
     footposDiff(3) = ( des_rot.e().transpose()*(test.e() - base_ref) - rot.e().transpose()*(RR_footpos - base_) ).norm();
 
     posDiff = gc_.head(3) - targState_.segment(0,3);
-    posDiff << (gc_.head(2) - targState_.head(2)), 0;
+//    posDiff << (gc_.head(2) - targState_.head(2)), 0;
     dofDiff = gc_.tail(12) - targState_.segment(7,12);
     linvelDiff = gv_.head(3) - targState_.segment(19,3);
     angvelDiff = gv_.segment(3,3) - targState_.segment(22,3);
+    dofvelDiff = gv_.tail(12) - targState_.tail(12);
 
 //    Eigen::Quaterniond q1 = Eigen::Quaterniond(gc_[3], gc_[4], gc_[5], gc_[6]);
 //    Eigen::Quaterniond q2 = Eigen::Quaterniond(targState_[3], targState_[4], targState_[5], targState_[6]);
@@ -180,17 +183,18 @@ class ENVIRONMENT : public RaisimGymEnv {
     Eigen::VectorXd dofvel(12);
     dofvel = gv_.segment(6, 12);
 
-    rewards_.record("torque", anymal_->getGeneralizedForce().squaredNorm());
-    rewards_.record("compos", exp(-2 * posDiff.norm()));
-//    rewards_.record("dofpos", exp(-2 * dofDiff.norm()));
+//    rewards_.record("torque", anymal_->getGeneralizedForce().squaredNorm());
+    rewards_.record("compos", exp(-0.5 * posDiff.norm()));
+    rewards_.record("dofpos", exp(-1. * dofDiff.norm()));
 //    rewards_.record("footpos", exp(-2 * footposDiff.norm()));
-    rewards_.record("footpos", -log(2 * footposDiff.norm() + 1e-6));
-//    rewards_.record("linvel", exp(-2 * linvelDiff.norm()));
-    rewards_.record("linvel", -log(linvelDiff.norm() + 1e-6));
-//    rewards_.record("angvel", exp(-2 * angvelDiff.norm()));
-    rewards_.record("angvel", -log(angvelDiff.norm() + 1e-6));
-    rewards_.record("quat", exp(-0.5 * quatDiff.norm()));
-    rewards_.record("dofvel", exp(-0.5 * dofvel.norm()));
+//    rewards_.record("footpos", -log(0.5 * footposDiff.norm() + 1e-6));
+    rewards_.record("linvel", exp(-0.5 * linvelDiff.norm()));
+//    rewards_.record("linvel", -log(0.5 * linvelDiff.norm() + 1e-6));
+//    rewards_.record("angvel", exp(-0.5 * angvelDiff.norm()));
+    rewards_.record("angvel", -log(1.0 * angvelDiff.norm() + 1e-6));
+    rewards_.record("quat", exp(-5 * quatDiff.norm()));
+//    rewards_.record("dofvel", exp(-0.5 * dofvel.norm()));
+    rewards_.record("dofvel", exp(-0.1 * dofvelDiff.norm()));
 
     prevAction_ = pTarget12_;
     t += 1;
@@ -325,6 +329,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   Eigen::MatrixXd reference_; Eigen::MatrixXd vreference_;
   Eigen::Vector3d posDiff = Eigen::Vector3d::Zero();
   Eigen::VectorXd dofDiff = Eigen::VectorXd::Zero(12);
+  Eigen::VectorXd dofvelDiff = Eigen::VectorXd::Zero(12);
   Eigen::Vector3d linvelDiff = Eigen::Vector3d::Zero();
   Eigen::Vector3d angvelDiff = Eigen::Vector3d::Zero();
   Eigen::Vector3d FL_footpos, FR_footpos, RL_footpos, RR_footpos;
