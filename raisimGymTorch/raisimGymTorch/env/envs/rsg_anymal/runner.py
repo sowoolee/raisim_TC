@@ -44,6 +44,7 @@ env.seed(cfg['seed'])
 # shortcuts
 ob_dim = env.num_obs
 act_dim = env.num_acts
+critic_ob_dim = env.num_critic_obs
 num_threads = cfg['environment']['num_threads']
 
 # Training
@@ -59,7 +60,7 @@ actor = ppo_module.Actor(ppo_module.MLP(cfg['architecture']['policy_net'], nn.Le
                                                                            NormalSampler(act_dim),
                                                                            cfg['seed']),
                          device)
-critic = ppo_module.Critic(ppo_module.MLP(cfg['architecture']['value_net'], nn.LeakyReLU, ob_dim, 1),
+critic = ppo_module.Critic(ppo_module.MLP(cfg['architecture']['value_net'], nn.LeakyReLU, critic_ob_dim, 1),
                            device)
 
 saver = ConfigurationSaver(log_dir=home_path + "/raisimGymTorch/data/"+task_name,
@@ -124,19 +125,22 @@ for update in range(20001):
         reward_analyzer.analyze_and_plot(update)
         env.reset()
         env.save_scaling(saver.data_dir, str(update))
+        env.save_critic_scaling(saver.data_dir, str(update))
 
     # actual training
     for step in range(n_steps):
-        obs = env.observe()
-        action = ppo.act(obs)
+        actor_obs = env.observe()
+        critic_obs = env.observe_critic()
+        action = ppo.act(actor_obs)
         reward, dones = env.step(action)
-        ppo.step(value_obs=obs, rews=reward, dones=dones)
+        ppo.step(value_obs=critic_obs, rews=reward, dones=dones)
         done_sum = done_sum + np.sum(dones)
         reward_sum = reward_sum + np.sum(reward)
 
     # take st step to get value obs
-    obs = env.observe()
-    ppo.update(actor_obs=obs, value_obs=obs, log_this_iteration=update % 10 == 0, update=update)
+    actor_obs = env.observe()
+    critic_obs = env.observe_critic()
+    ppo.update(actor_obs=actor_obs, value_obs=critic_obs, log_this_iteration=update % 10 == 0, update=update)
     average_ll_performance = reward_sum / total_steps
     average_dones = done_sum / total_steps
     avg_rewards.append(average_ll_performance)

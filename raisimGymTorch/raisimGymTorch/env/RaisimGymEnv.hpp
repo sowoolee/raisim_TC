@@ -43,6 +43,7 @@ class RaisimGymEnv {
   void setSimulationTimeStep(double dt) { simulation_dt_ = dt; world_->setTimeStep(dt); }
   void setControlTimeStep(double dt) { control_dt_ = dt; }
   int getObDim() { return obDim_; }
+  int getCriticObDim() { return criticObDim_; }
   int getActionDim() { return actionDim_; }
   double getControlTimeStep() { return control_dt_; }
   double getSimulationTimeStep() { return simulation_dt_; }
@@ -60,6 +61,7 @@ class RaisimGymEnv {
   std::string resourceDir_;
   Yaml::Node cfg_;
   int obDim_=0, actionDim_=0;
+  int criticObDim_ = 0;
   std::unique_ptr<raisim::RaisimServer> server_;
   raisim::Reward rewards_;
 };

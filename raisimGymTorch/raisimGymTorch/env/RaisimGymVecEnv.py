@@ -18,7 +18,9 @@ class RaisimGymVecEnv:
         self.wrapper = impl
         self.num_obs = self.wrapper.getObDim()
         self.num_acts = self.wrapper.getActionDim()
+        self.num_critic_obs = self.wrapper.getCriticObDim()
         self._observation = np.zeros([self.num_envs, self.num_obs], dtype=np.float32)
+        self._critic_observation = np.zeros([self.num_envs, self.num_critic_obs], dtype=np.float32)
         self.actions = np.zeros([self.num_envs, self.num_acts], dtype=np.float32)
         self.log_prob = np.zeros(self.num_envs, dtype=np.float32)
         self._reward = np.zeros(self.num_envs, dtype=np.float32)
@@ -28,6 +30,8 @@ class RaisimGymVecEnv:
         self.count = 0.0
         self.mean = np.zeros(self.num_obs, dtype=np.float32)
         self.var = np.zeros(self.num_obs, dtype=np.float32)
+        self.cmean = np.zeros(self.num_critic_obs, dtype=np.float32)
+        self.cvar = np.zeros(self.num_critic_obs, dtype=np.float32)
         self._state = np.zeros([self.num_envs, 37], dtype=np.float32)
         self._ref = np.zeros([56, 37], dtype=np.float32)
 
@@ -68,6 +72,25 @@ class RaisimGymVecEnv:
     def observe(self, update_statistics=True):
         self.wrapper.observe(self._observation, update_statistics)
         return self._observation
+
+    def load_critic_scaling(self, dir_name, iteration, count=1e5):
+        cmean_file_name = dir_name + "/cmean" + str(iteration) + ".csv"
+        cvar_file_name = dir_name + "/cvar" + str(iteration) + ".csv"
+        self.count = count
+        self.cmean = np.loadtxt(cmean_file_name, dtype=np.float32)
+        self.cvar = np.loadtxt(cvar_file_name, dtype=np.float32)
+        self.wrapper.setCriticObStatistics(self.cmean, self.cvar, self.count)
+
+    def save_critic_scaling(self, dir_name, iteration):
+        cmean_file_name = dir_name + "/cmean" + iteration + ".csv"
+        cvar_file_name = dir_name + "/cvar" + iteration + ".csv"
+        self.wrapper.getCriticObStatistics(self.cmean, self.cvar, self.count)
+        np.savetxt(cmean_file_name, self.cmean)
+        np.savetxt(cvar_file_name, self.cvar)
+
+    def observe_critic(self, update_statistics=True):
+        self.wrapper.observe_critic(self._critic_observation, update_statistics)
+        return self._critic_observation
 
     def observe_state(self):
         self.wrapper.getState(self._state)

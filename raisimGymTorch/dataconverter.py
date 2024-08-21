@@ -13,7 +13,7 @@ state = np.concatenate([loaded_data['gc'][:,:,0:3], loaded_data['gc'][:,:,4:7], 
 last_state = state[:,-1:,:]
 #
 # first_chunk = np.repeat(first_state, 24, axis=1)
-last_chunk = np.repeat(last_state, 68, axis=1)
+last_chunk = np.repeat(last_state, 174, axis=1) #68
 #
 state = np.concatenate([state, last_chunk], axis=1)
 # state_extended = np.concatenate([first_chunk, state, last_chunk], axis=1)
@@ -21,7 +21,7 @@ state = np.concatenate([state, last_chunk], axis=1)
 # state_2d = state_extended.reshape(state_extended.shape[0], -1)
 
 state_2d = state.reshape(-1, 37)
-file_path = os.path.expanduser('~/Desktop/backflip_.csv')
+file_path = os.path.expanduser('~/Desktop/backflip__.csv')
 np.savetxt(file_path, state_2d, delimiter=',')
 
 print("here")

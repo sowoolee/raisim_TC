@@ -149,6 +149,7 @@ class VectorizedEnvironment {
     }
 
     obDim_ = environments_[0]->getObDim();
+    criticObDim_ = environments_[0]->getCriticObDim();
     actionDim_ = environments_[0]->getActionDim();
     RSFATAL_IF(obDim_ == 0 || actionDim_ == 0, "Observation/Action dimension must be defined in the constructor of each environment!")
 
@@ -162,6 +163,17 @@ class VectorizedEnvironment {
       epsilon.setZero(obDim_);
       epsilon.setConstant(1e-8);
     }
+
+    if (normalizeObservation_) {
+        cobMean_.setZero(criticObDim_);
+        cobVar_.setOnes(criticObDim_);
+        recentCMean_.setZero(criticObDim_);
+        recentCVar_.setZero(criticObDim_);
+        cdelta_.setZero(criticObDim_);
+        cepsilon.setZero(criticObDim_);
+        cepsilon.setConstant(1e-8);
+    }
+
   }
 
   // resets all environments and returns observation
@@ -195,6 +207,15 @@ class VectorizedEnvironment {
       updateObservationStatisticsAndNormalize(ob, updateStatistics);
   }
 
+  void observe_critic(Eigen::Ref<EigenRowMajorMat> &ob, bool updateStatistics) {
+#pragma omp parallel for schedule(auto)
+    for (int i = 0; i < num_envs_; i++)
+      environments_[i]->observe_critic(ob.row(i));
+
+    if (normalizeObservation_)
+      updateCriticObservationStatisticsAndNormalize(ob, updateStatistics);
+  }
+
 
   void step(Eigen::Ref<EigenRowMajorMat> &action,
             Eigen::Ref<EigenVec> &reward,
@@ -224,6 +245,11 @@ class VectorizedEnvironment {
     mean = obMean_; var = obVar_; count = obCount_; }
   void setObStatistics(Eigen::Ref<EigenVec> &mean, Eigen::Ref<EigenVec> &var, float count) {
     obMean_ = mean; obVar_ = var; obCount_ = count; }
+
+  void getCriticObStatistics(Eigen::Ref<EigenVec> &mean, Eigen::Ref<EigenVec> &var, float &count) {
+      mean = cobMean_; var = cobVar_; count = cobCount_; }
+  void setCriticObStatistics(Eigen::Ref<EigenVec> &mean, Eigen::Ref<EigenVec> &var, float count) {
+      cobMean_ = mean; cobVar_ = var; cobCount_ = count; }
 
   void getState(Eigen::Ref<EigenRowMajorMat> &st){
       for (int i = 0; i < num_envs_; i++)
@@ -270,6 +296,7 @@ class VectorizedEnvironment {
   int getObDim() { return obDim_; }
   int getActionDim() { return actionDim_; }
   int getNumOfEnvs() { return num_envs_; }
+  int getCriticObDim() { return criticObDim_; }
 
   ////// optional methods //////
   void curriculumUpdate() {
@@ -301,6 +328,27 @@ class VectorizedEnvironment {
       ob.row(i) = (ob.row(i) - obMean_.transpose()).template cwiseQuotient<>((obVar_ + epsilon).cwiseSqrt().transpose());
   }
 
+  void updateCriticObservationStatisticsAndNormalize(Eigen::Ref<EigenRowMajorMat> &ob, bool updateStatistics) {
+      if (updateStatistics) {
+          recentCMean_ = ob.colwise().mean();
+          recentCVar_ = (ob.rowwise() - recentCMean_.transpose()).colwise().squaredNorm() / num_envs_;
+
+          cdelta_ = cobMean_ - recentCMean_;
+          for(int i=0; i<criticObDim_; i++)
+              cdelta_[i] = cdelta_[i]*cdelta_[i];
+
+          float totCount = cobCount_ + num_envs_;
+
+          cobMean_ = cobMean_ * (cobCount_ / totCount) + recentCMean_ * (num_envs_ / totCount);
+          cobVar_ = (cobVar_ * cobCount_ + recentCVar_ * num_envs_ + cdelta_ * (cobCount_ * num_envs_ / totCount)) / (totCount);
+          cobCount_ = totCount;
+      }
+
+#pragma omp parallel for schedule(auto)
+      for(int i=0; i<num_envs_; i++)
+          ob.row(i) = (ob.row(i) - cobMean_.transpose()).template cwiseQuotient<>((cobVar_ + cepsilon).cwiseSqrt().transpose());
+  }
+
   inline void perAgentStep(int agentId,
                            Eigen::Ref<EigenRowMajorMat> &action,
                            Eigen::Ref<EigenVec> &reward,
@@ -325,6 +373,7 @@ class VectorizedEnvironment {
 
   int num_envs_ = 1;
   int obDim_ = 0, actionDim_ = 0;
+  int criticObDim_ = 0;
   bool recordVideo_=false, render_=false;
   std::string resourceDir_;
   Yaml::Node cfg_;
@@ -334,7 +383,10 @@ class VectorizedEnvironment {
   bool normalizeObservation_ = true;
   EigenVec obMean_;
   EigenVec obVar_;
+  EigenVec cobMean_, cobVar_;
+  EigenVec recentCMean_, recentCVar_, cdelta_, cepsilon;
   float obCount_ = 1e-4;
+  float cobCount_ = 1e-4;
   EigenVec recentMean_, recentVar_, delta_;
   EigenVec epsilon;
 };

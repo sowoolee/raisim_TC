@@ -28,7 +28,9 @@ environment:
       coeff: -4e-6 # -1e-6이랑 더 좋은거 선택
     dofvel:
       coeff: 0.1
+    height:
+      coeff: 0.0
 
 architecture:
   policy_net: [256, 512, 128]
-  value_net: [256, 128]
+  value_net: [256, 512, 128]

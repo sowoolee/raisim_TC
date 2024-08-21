@@ -57,8 +57,9 @@ class ENVIRONMENT : public RaisimGymEnv {
 
     /// MUST BE DONE FOR ALL ENVIRONMENTS
     obDim_ = 239;
+    criticObDim_ = 245;
     actionDim_ = nJoints_; actionMean_.setZero(actionDim_); actionStd_.setZero(actionDim_);
-    obDouble_.setZero(obDim_);
+    obDouble_.setZero(obDim_); c_obDouble_.setZero(criticObDim_);
 
     prevAction_.setZero(nJoints_); targState_.setZero(37); currentState_.setZero(37); vtargState_.setZero(37);
 
@@ -80,10 +81,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     footIndices_.insert(anymal_->getBodyIdx("FR_calf"));
     footIndices_.insert(anymal_->getBodyIdx("RL_calf"));
     footIndices_.insert(anymal_->getBodyIdx("RR_calf"));
-    // footIndices_.insert(anymal_->getBodyIdx("FL_thigh"));
-    // footIndices_.insert(anymal_->getBodyIdx("FR_thigh"));
-    // footIndices_.insert(anymal_->getBodyIdx("RL_thigh"));
-    // footIndices_.insert(anymal_->getBodyIdx("RR_thigh"));
+//    footIndices_.insert(anymal_->getBodyIdx("FL_thigh"));
+//    footIndices_.insert(anymal_->getBodyIdx("FR_thigh"));
+//    footIndices_.insert(anymal_->getBodyIdx("RL_thigh"));
+//    footIndices_.insert(anymal_->getBodyIdx("RR_thigh"));
 
     /// visualize if it is the first environment
     if (visualizable_) {
@@ -175,6 +176,8 @@ class ENVIRONMENT : public RaisimGymEnv {
     angvelDiff = gv_.segment(3,3) - targState_.segment(22,3);
     dofvelDiff = gv_.tail(12) - targState_.tail(12);
 
+    double heightDiff = gc_(2) - targState_(2);
+
 //    Eigen::Quaterniond q1 = Eigen::Quaterniond(gc_[3], gc_[4], gc_[5], gc_[6]);
 //    Eigen::Quaterniond q2 = Eigen::Quaterniond(targState_[3], targState_[4], targState_[5], targState_[6]);
 //    Eigen::Quaterniond quatDiff = q1 * q2.conjugate();
@@ -195,6 +198,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     rewards_.record("quat", exp(-5 * quatDiff.norm()));
 //    rewards_.record("dofvel", exp(-0.5 * dofvel.norm()));
     rewards_.record("dofvel", exp(-0.1 * dofvelDiff.norm()));
+    rewards_.record("height", exp(-5. * pow(heightDiff,2)));
 
     prevAction_ = pTarget12_;
     t += 1;
@@ -249,6 +253,21 @@ class ENVIRONMENT : public RaisimGymEnv {
         reference_.row(t - 1 + 16).transpose(),
         reference_.row(t - 1 + 21).transpose();
 
+    c_obDouble_ << gc_[2], /// body height
+        gc_.segment(3,4), /// base quaternion
+        rot.e().row(2).transpose(), /// gravity vector
+        gv_.segment(6,6), /// world frame lin & angvel
+        gc_.tail(12), /// joint angles
+        bodyLinearVel_, bodyAngularVel_, /// body linear&angular velocity
+        gv_.tail(12), /// joint velocity
+        prevAction_, /// action history
+        FL_footpos(2), FR_footpos(2), RL_footpos(2), RR_footpos(2), /// foot height
+        reference_.row(t - 1 + 1).transpose(),
+        reference_.row(t - 1 + 6).transpose(),
+        reference_.row(t - 1 + 11).transpose(),
+        reference_.row(t - 1 + 16).transpose(),
+        reference_.row(t - 1 + 21).transpose();
+
     targState_ << reference_.row(t - 1 + 1).head(3).transpose(),
                   reference_.row(t - 1 + 1)(6),
                   reference_.row(t - 1 + 1).segment(3,3).transpose(),
@@ -273,6 +292,11 @@ class ENVIRONMENT : public RaisimGymEnv {
   void observe(Eigen::Ref<EigenVec> ob) final {
     /// convert it to float
     ob = obDouble_.cast<float>();
+  }
+
+  void observe_critic(Eigen::Ref<EigenVec> ob) {
+      /// convert it to float
+    ob = c_obDouble_.cast<float>();
   }
 
   bool isTerminalState(float& terminalReward) final {
@@ -322,7 +346,7 @@ class ENVIRONMENT : public RaisimGymEnv {
 
   Eigen::VectorXd gc_init_, gv_init_, gc_, gv_, pTarget_, pTarget12_, vTarget_;
   double terminalRewardCoeff_ = -10.;
-  Eigen::VectorXd actionMean_, actionStd_, obDouble_;
+  Eigen::VectorXd actionMean_, actionStd_, obDouble_, c_obDouble_;
   Eigen::VectorXd prevAction_, targState_, currentState_, vtargState_;
   Eigen::Vector3d bodyLinearVel_, bodyAngularVel_;
   std::set<size_t> footIndices_;

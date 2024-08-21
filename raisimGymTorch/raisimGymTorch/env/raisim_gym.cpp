@@ -42,6 +42,10 @@ PYBIND11_MODULE(RAISIMGYM_TORCH_ENV_NAME, m) {
     .def("setObStatistics", &VectorizedEnvironment<ENVIRONMENT>::setObStatistics)
     .def("getState", &VectorizedEnvironment<ENVIRONMENT>::getState)
     .def("updateReference", &VectorizedEnvironment<ENVIRONMENT>::updateRef)
+    .def("getCriticObDim", &VectorizedEnvironment<ENVIRONMENT>::getCriticObDim)
+    .def("observe_critic", &VectorizedEnvironment<ENVIRONMENT>::observe_critic)
+    .def("getCriticObStatistics", &VectorizedEnvironment<ENVIRONMENT>::getCriticObStatistics)
+    .def("setCriticObStatistics", &VectorizedEnvironment<ENVIRONMENT>::setCriticObStatistics)
     .def(py::pickle(
         [](const VectorizedEnvironment<ENVIRONMENT> &p) { // __getstate__ --> Pickling to Python
             /* Return a tuple that fully encodes the state of the object */
