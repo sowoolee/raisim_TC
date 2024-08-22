@@ -5,7 +5,7 @@ environment:
   render: True
 # just testing commenting
   num_envs: 100
-  eval_every_n: 1000
+  eval_every_n: 500
   num_threads: 30
   simulation_dt: 0.005
   control_dt: 0.02
@@ -17,7 +17,7 @@ environment:
     dofpos:
       coeff: 0.08
     footpos:
-      coeff: 0.2 # 0.25이랑 더 좋은거 선택
+      coeff: 0.03 # 0.25이랑 더 좋은거 선택
     linvel:
       coeff: 0.55 # exp로 줄땐 0.7, log로 줄땐 0.25
     angvel:
@@ -28,8 +28,21 @@ environment:
       coeff: -4e-6 # -1e-6이랑 더 좋은거 선택
     dofvel:
       coeff: 0.1
-    height:
-      coeff: 0.0
+    bf_compos:
+      coeff: 0.25
+    bf_dofpos:
+      coeff: 0.08
+    bf_footpos:
+      coeff: 0.03
+    bf_linvel:
+      coeff: 0.55
+    bf_angvel:
+      coeff: 0.3
+    bf_quat:
+      coeff: 0.35
+    bf_dofvel:
+      coeff: 0.1
+
 
 architecture:
   policy_net: [256, 512, 128]
