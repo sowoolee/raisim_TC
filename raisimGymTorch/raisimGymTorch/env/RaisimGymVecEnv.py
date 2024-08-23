@@ -100,6 +100,9 @@ class RaisimGymVecEnv:
         self._ref = ref
         self.wrapper.updateReference(self._ref, gait_num)
 
+    def getVisEnvMode(self):
+        return self.wrapper.getVisEnvMode()
+
     def get_reward_info(self):
         return self.wrapper.getRewardInfo()
 

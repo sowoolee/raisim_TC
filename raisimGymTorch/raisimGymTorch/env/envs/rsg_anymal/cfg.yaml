@@ -5,29 +5,28 @@ environment:
   render: True
 # just testing commenting
   num_envs: 100
-  eval_every_n: 500
+  eval_every_n: 1000
   num_threads: 30
   simulation_dt: 0.005
   control_dt: 0.02
-  max_time: 1.5
+  max_time: 3.0
   action_std: 0.3
   reward:
-    compos:
-      coeff: 0.25
-    dofpos:
-      coeff: 0.08
-    footpos:
-      coeff: 0.03 # 0.25이랑 더 좋은거 선택
-    linvel:
-      coeff: 0.55 # exp로 줄땐 0.7, log로 줄땐 0.25
-    angvel:
-      coeff: 0.3 # exp로 줄땐 0.2, log로 줄땐 0.1
-    quat:
-      coeff: 0.35
-    torque:
-      coeff: -4e-6 # -1e-6이랑 더 좋은거 선택
-    dofvel:
+    loco_compos:
+      coeff: 0.2
+    loco_dofpos:
+      coeff: 0.025
+    loco_footpos:
+      coeff: 0.4 # 0.25이랑 더 좋은거 선택
+    loco_linvel:
+      coeff: 0.25 # exp로 줄땐 0.7, log로 줄땐 0.25
+    loco_angvel:
+      coeff: 0.15 # exp로 줄땐 0.2, log로 줄땐 0.1
+    loco_quat:
       coeff: 0.1
+    loco_torque:
+      coeff: -4e-6 # -1e-6이랑 더 좋은거 선택
+
     bf_compos:
       coeff: 0.25
     bf_dofpos:

@@ -85,24 +85,30 @@ reward_analyzer = RewardAnalyzer(env, ppo.writer)
 if mode == 'retrain':
     load_param(weight_path, env, actor, critic, ppo.optimizer, saver.data_dir)
 
-for update in range(10001):
+visited_modes = [0,0,0,0,0]
+
+for update in range(50001):
     start = time.time()
     env.reset()
     reward_sum = 0
     done_sum = 0
     average_dones = 0.
 
-    if update % cfg['environment']['eval_every_n'] == 0:
+    current_mode = env.getVisEnvMode()
+    if visited_modes[current_mode] < update // cfg['environment']['eval_every_n'] + 1:
+    # if update % cfg['environment']['eval_every_n'] == 0:
+        if update % cfg['environment']['eval_every_n'] == 0:
+            torch.save({
+                'actor_architecture_state_dict': actor.architecture.state_dict(),
+                'actor_distribution_state_dict': actor.distribution.state_dict(),
+                'critic_architecture_state_dict': critic.architecture.state_dict(),
+                'optimizer_state_dict': ppo.optimizer.state_dict(),
+            }, saver.data_dir+"/full_"+str(update)+'.pt')
+            # we create another graph just to demonstrate the save/load method
+            loaded_graph = ppo_module.MLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim)
+            loaded_graph.load_state_dict(torch.load(saver.data_dir+"/full_"+str(update)+'.pt')['actor_architecture_state_dict'])
+
         print("Visualizing and evaluating the current policy")
-        torch.save({
-            'actor_architecture_state_dict': actor.architecture.state_dict(),
-            'actor_distribution_state_dict': actor.distribution.state_dict(),
-            'critic_architecture_state_dict': critic.architecture.state_dict(),
-            'optimizer_state_dict': ppo.optimizer.state_dict(),
-        }, saver.data_dir+"/full_"+str(update)+'.pt')
-        # we create another graph just to demonstrate the save/load method
-        loaded_graph = ppo_module.MLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim)
-        loaded_graph.load_state_dict(torch.load(saver.data_dir+"/full_"+str(update)+'.pt')['actor_architecture_state_dict'])
 
         env.turn_on_visualization()
         env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(update)+'.mp4')
@@ -122,10 +128,15 @@ for update in range(10001):
         env.stop_video_recording()
         env.turn_off_visualization()
 
-        reward_analyzer.analyze_and_plot(update)
+        if update % cfg['environment']['eval_every_n'] == 0:
+            reward_analyzer.analyze_and_plot(update)
         env.reset()
-        env.save_scaling(saver.data_dir, str(update))
-        env.save_critic_scaling(saver.data_dir, str(update))
+
+        if update % cfg['environment']['eval_every_n'] == 0:
+            env.save_scaling(saver.data_dir, str(update))
+            env.save_critic_scaling(saver.data_dir, str(update))
+
+        visited_modes[current_mode] += 1
 
     # actual training
     for step in range(n_steps):

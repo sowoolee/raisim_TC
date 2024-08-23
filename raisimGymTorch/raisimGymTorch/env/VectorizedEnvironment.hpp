@@ -83,21 +83,24 @@ class VectorizedEnvironment {
       : resourceDir_(resourceDir), cfgString_(cfg), normalizeObservation_(normalizeObservation) {
     Yaml::Parse(cfg_, cfg);
 
-//    std::string CSVpath = resourceDir + "/data/trot_all.csv";
-//    readCSVtoEigen(CSVpath);
-//    trot_idx = globalMatrices.size();
-//    std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
-//    readCSVtoEigen(CSVpath1);
-//    bound_idx = globalMatrices.size();
-//    std::string CSVpath2 = resourceDir + "/data/pace_all.csv";
-//    readCSVtoEigen(CSVpath2);
-//    pace_idx = globalMatrices.size();
-//    std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
-//    readCSVtoEigen(CSVpath3);
-//    pronk_idx = globalMatrices.size();
+    std::string CSVpath = resourceDir + "/data/trot_all.csv";
+    readCSVtoEigen(CSVpath);
+    trot_idx = globalMatrices.size();
+    std::string CSVpath1 = resourceDir + "/data/bound_all.csv";
+    readCSVtoEigen(CSVpath1);
+    bound_idx = globalMatrices.size();
+    std::string CSVpath2 = resourceDir + "/data/pace_all.csv";
+    readCSVtoEigen(CSVpath2);
+    pace_idx = globalMatrices.size();
+    std::string CSVpath3 = resourceDir + "/data/pronk_all.csv";
+    readCSVtoEigen(CSVpath3);
+    pronk_idx = globalMatrices.size();
 
-    std::string CSVpath4 = resourceDir + "/data/backflip_.csv";
-    readCSVtoEigen(CSVpath4, 144);
+    std::string CSVpath4 = resourceDir + "/data/backflip__refined.csv";
+    readCSVtoEigen(CSVpath4);
+
+//    std::string CSVpath4 = resourceDir + "/data/backflip_.csv";
+//    readCSVtoEigen(CSVpath4, 144);
 
     std::cout << "Total " << globalMatrices.size() << " Episodes" << std::endl;
 
@@ -298,6 +301,10 @@ class VectorizedEnvironment {
   int getNumOfEnvs() { return num_envs_; }
   int getCriticObDim() { return criticObDim_; }
 
+  int getVisEnvMode() {
+      return environments_[0]->getModeNum();
+  }
+
   ////// optional methods //////
   void curriculumUpdate() {
     for (auto *env: environments_)
@@ -367,6 +374,7 @@ class VectorizedEnvironment {
 
   std::vector<Eigen::MatrixXd> trajectories;
   int trot_idx = 0, bound_idx = 0, pace_idx = 0, pronk_idx = 0;
+  int vis_mode;
 
   std::vector<ChildEnvironment *> environments_;
   std::vector<std::map<std::string, float>> rewardInformation_;
