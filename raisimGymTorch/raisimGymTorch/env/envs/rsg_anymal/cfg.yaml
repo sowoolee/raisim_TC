@@ -34,9 +34,9 @@ environment:
     bf_footpos:
       coeff: 0.03
     bf_linvel:
-      coeff: 0.55
+      coeff: 0.01 #0.55
     bf_angvel:
-      coeff: 0.3
+      coeff: 0.01 #0.3
     bf_quat:
       coeff: 0.35
     bf_dofvel:

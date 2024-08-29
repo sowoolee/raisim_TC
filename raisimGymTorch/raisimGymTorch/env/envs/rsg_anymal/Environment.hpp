@@ -99,13 +99,19 @@ class ENVIRONMENT : public RaisimGymEnv {
   void init() final { }
 
   void reset() final {
-    gc_init_.segment(0,2) = reference_.row(0).segment(0,2);
-    gc_init_.segment(3,1) = reference_.row(0).segment(6,1);
-    gc_init_.segment(4,3) = reference_.row(0).segment(3,3);
+    t = 0;
+    gc_init_ << 0, 0, 0.35, 1.0, 0.0, 0.0, 0.0, 0.1, 0.8, -1.5, -0.1, 0.8, -1.5, 0.1, 1.0, -1.5, -0.1, 1.0, -1.5;
+    gv_init_.setZero(gvDim_);
+
+    if (gait_num_ == -1) t = bf_init_t;
+
+    gc_init_.segment(0,2) = reference_.row(t).segment(0,2);
+    gc_init_.segment(3,1) = reference_.row(t).segment(6,1);
+    gc_init_.segment(4,3) = reference_.row(t).segment(3,3);
     if (gait_num_ == -1){
-        gc_init_(2) = reference_.row(0)(2);
-        gc_init_.segment(7,12) = reference_.row(0).segment(7,12);
-        gv_init_ = reference_.row(0).tail(18);
+        gc_init_(2) = reference_.row(t)(2);
+        gc_init_.segment(7,12) = reference_.row(t).segment(7,12);
+        gv_init_ = reference_.row(t).tail(18);
     }
 
     anymal_->setState(gc_init_, gv_init_);
@@ -120,7 +126,6 @@ class ENVIRONMENT : public RaisimGymEnv {
     anymal_kinematics_->getFramePosition(anymal_kinematics_->getFrameIdxByName("RR_foot_fixed"), test);
     RR_footpos = test.e();
 
-    t = 0;
     updateObservation();
     currentState_ << gc_, gv_;
   }
@@ -184,13 +189,13 @@ class ENVIRONMENT : public RaisimGymEnv {
     bf_dofDiff = dofDiff.array() * jointScale.array();
 
     Eigen::Vector3d comScale, bf_posDiff;
-    comScale << 1., 0., 5.; // 1., 1., 5.
+    comScale << 0., 0., 5.; // 1., 1., 5.
     bf_posDiff = posDiff.array() * comScale.array();
 
     Eigen::Vector3d linvelScale, bf_linvelDiff;
     bf_linvelDiff = linvelDiff;
-//    linvelScale << 1., 0., 1.5;
-//    bf_linvelDiff = linvelDiff.array() * linvelScale.array(); // 합쳐서 할땐 튜닝 상황에 따라서 linvel scale 없애는거 고려
+    linvelScale << 1., 0., 1.5;
+    bf_linvelDiff = linvelDiff.array() * linvelScale.array(); // 합쳐서 할땐 튜닝 상황에 따라서 linvel scale 없애는거 고려
 
 //    Eigen::Quaterniond q1 = Eigen::Quaterniond(gc_[3], gc_[4], gc_[5], gc_[6]);
 //    Eigen::Quaterniond q2 = Eigen::Quaterniond(targState_[3], targState_[4], targState_[5], targState_[6]);
@@ -201,11 +206,13 @@ class ENVIRONMENT : public RaisimGymEnv {
     dofvel = gv_.segment(6, 12);
 
     if (gait_num_ == -1){
-        rewards_.record("bf_compos", exp(-0.5 * bf_posDiff.norm()));
+//        rewards_.record("bf_compos", exp(-0.5 * bf_posDiff.norm()));
+        rewards_.record("bf_compos", -log(1.0 * bf_posDiff.norm() + 1e-6));
         rewards_.record("bf_dofpos", exp(-1. * bf_dofDiff.norm()));
         rewards_.record("bf_footpos", exp(-0.5 * footposDiff.norm()));
         rewards_.record("bf_linvel", exp(-0.5 * bf_linvelDiff.norm()));
         rewards_.record("bf_angvel", -log(1.0 * angvelDiff.norm() + 1e-6));
+//        rewards_.record("bf_angvel", exp(-0.5 * angvelDiff.norm()));
         rewards_.record("bf_quat", exp(-5 * quatDiff.norm()));
         rewards_.record("bf_dofvel", exp(-0.1 * dofvelDiff.norm()));
 
@@ -376,6 +383,25 @@ class ENVIRONMENT : public RaisimGymEnv {
     gait_num_ = gait_num;
 //    if (visualizable_) std::cout << "Gait number is " << gait_num_ << std::endl;
     t = 0;
+
+    /// for backflip training
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis1(1, 5);
+    std::uniform_int_distribution<> dis2(30, 35);
+    std::uniform_real_distribution<> prob_dis(0.0, 1.0);
+    double random_value = prob_dis(gen);
+
+    if (random_value < 0.8){
+        bf_init_t = 0;
+    }
+    else if (random_value < 0.9){
+        bf_init_t = dis1(gen);
+    }
+    else {
+        bf_init_t = dis2(gen);
+    }
+
     updateObservation();
   }
 
@@ -392,7 +418,7 @@ class ENVIRONMENT : public RaisimGymEnv {
   }
 
  private:
-  int t = 0;
+  int t = 0, bf_init_t = 0;
   int gcDim_, gvDim_, nJoints_;
   bool visualizable_ = false;
   raisim::ArticulatedSystem* anymal_;

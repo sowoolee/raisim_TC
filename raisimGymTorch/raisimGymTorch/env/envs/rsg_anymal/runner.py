@@ -82,12 +82,14 @@ ppo = PPO.PPO(actor=actor,
 
 reward_analyzer = RewardAnalyzer(env, ppo.writer)
 
+# -m retrain -w /home/hubolab/workspace/raisim_ws/raisimLib/raisimGymTorch/data/go1_locomotion/bf_loco_re2train/full_2500.pt
 if mode == 'retrain':
     load_param(weight_path, env, actor, critic, ppo.optimizer, saver.data_dir)
 
+gait = ['pronk','trot','bound','pace','bf']
 visited_modes = [0,0,0,0,0]
 
-for update in range(50001):
+for update in range(25001):
     start = time.time()
     env.reset()
     reward_sum = 0
@@ -108,10 +110,10 @@ for update in range(50001):
             loaded_graph = ppo_module.MLP(cfg['architecture']['policy_net'], nn.LeakyReLU, ob_dim, act_dim)
             loaded_graph.load_state_dict(torch.load(saver.data_dir+"/full_"+str(update)+'.pt')['actor_architecture_state_dict'])
 
-        print("Visualizing and evaluating the current policy")
+        print("Visualizing and evaluating the current policy :", update)
 
         env.turn_on_visualization()
-        env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(update)+'.mp4')
+        env.start_video_recording(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "policy_"+str(update)+'_'+gait[current_mode]+'.mp4')
 
         for step in range(n_steps):
             with torch.no_grad():
